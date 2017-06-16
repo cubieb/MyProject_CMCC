@@ -1,0 +1,232 @@
+#add a hello application to /bin
+
+(a)Create hello directory in RT288x_SDK/source/user
+	$mkdir RT288x_SDK/source/use/hello
+
+(b) Add Makefile to RT288x_SDK/source/user/hello
+	EXEC = hello 
+	OBJS = hello.o 
+	CFLAGS +=
+	all: $(EXEC)
+	$(EXEC): $(OBJS)
+		$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	romfs: 
+		$(ROMFSINST) /bin/$(EXEC)
+	clean:
+		-rm -f $(EXEC) *.elf *.gdb *.o
+
+(c) Add hello.c to RT288x_SDK/source/user/hello
+	main()
+	{
+		printf("hello world.\n");
+	}
+
+(d) Edit RT288x_SDK/source/config/config.in
+	mainmenu_option next_comment
+	comment 'XXX Add-on Applications'
+	bool 'hello_world' CONFIG_USER_HELLO_WORLD
+	endmenu
+
+(e) Edit RT288x_SDK/source/user/Makefile
+	dir_$(CONFIG_USER_HELLO_WORLD) += hello
+
+(f) Turn on hello application
+	#make menuconfig
+	[*] hello_world (NEW)
+
+(g) Build new image
+	#make dep
+	#make
+(h) check file is correct
+	# file hello
+	
+(g) Test the application 
+	#hello
+
+
+
+WirelessMode
+	Description: Set WLAN mode Value: iwpriv ra0 set WirelessMode=5
+	0: legacy 11b/g mixed 
+	1: legacy 11B only 
+	2: legacy 11A only 
+	3: legacy 11a/b/g mixed 
+	4: legacy 11G only 
+	5: 11ABGN mixed 
+	6: 11N only 
+	7: 11GN mixed 
+	8: 11AN mixed 
+	9: 11BGN mixed 
+	10: 11AGN mixed 
+	11: 11N only in 5G band only 
+	14: 11A/AN/AC mixed 5G band only (Only 11AC chipset support) 
+	15: 11 AN/AC mixed 5G band only (Only 11AC chipset support)
+
+
+TxPower
+	Description: Set Transmit Power by percentage 
+	Value: iwpriv ra0 set TxPower=100 0~100 
+	Note: 91 ~ 100% & AUTO 
+	treat as 100% in terms of mW 61 ~ 90% 
+	treat as 75% in terms of mW 31 ~ 60% 
+	treat as 50% in terms of mW 16 ~ 30% 
+	treat as 25% in terms of mW 10 ~ 15% 
+	treat as 12.5% in terms of mW 0 ~ 9 % 
+	treat as MIN(~3%) in terms of mW
+	-1dBm -3dBm -6dBm -9dBm -12dBm
+
+HideSSID
+	Description: enable or disable hidden SSID 
+	Value: iwpriv ra0 set HideSSID=1
+	0: disable 1: enable
+
+CLAddEntry
+	Description: To insert one or several MAC addresses into Access control MAC table list, up to 64 MAC address at one time. 
+	Value: iwpriv ra0 set ACLAddEntry=”xx:xx:xx:xx:xx:xx” [MAC address];[MAC address];...;[MAC address]” 
+	Example: iwpriv ra0 ACLAddEntry="00:0c:43:28:aa:12;00:0c:43:28:aa:11;00:0c:43:28:aa:10"
+
+
+CLClearAll
+	Description: To clear all the MAC address entries in an Access control MAC table list. 
+	Value: iwpriv ra0 set ACLClearAll=1 1: indicate to clear the table Other value is invalid.
+
+
+WpaMixPairCipher
+	Description: It provides a more flexible cipher combination.
+	Value: iwpriv ra0 set WpaMixPairCipher=WPA_AES_WPA2_TKIPAES WPA_AES_WPA2_TKIPAES WPA_AES_WPA2_TKIP WPA_TKIP_WPA2_AES WPA_TKIP_WPA2_TKIPAES WPA_TKIPAES_WPA2_AES WPA_TKIPAES_WPA2_TKIPAES WPA_TKIPAES_WPA2_TKIP 
+	Note: The SSID must be set again to make this setting valid.
+
+GreenAP
+	Description: enable or disable Green AP fucntion 
+	Value: iwpriv ra0 set GreenAP=0 0: disable 1: enable
+
+MBSSWirelessMode
+	Description: Set MBSS Wireless phy Mode. Only support in v2.5.0.0 and after version. 
+	Value: 
+		0: 802.11 B/G mixed 
+		1: 802.11 B only 
+		2: 802.11 A only 
+		4: 802.11 G only 
+		6: 802.11 N only 
+		7: 802.11 G/N mixed 
+		8: 802.11 A/N mixed 
+		9: 802.11 B/G/N mixed 
+		10: 802.11 A/G/N mixed 
+		11: 802.11 N in 5G band only
+	Example: 
+		ra0: B/G/N fixed 
+		ra1: B only 
+		ra2: B/G mixed 
+		ra3: G only Must set main BSS (ra0) first then set other MBSS WirelessMode. Can ’t have A & B mode fixed in MBSS. 
+		iwpriv ra0 set WirelessMode=9 
+		iwpriv ra1 set MBSSWirelessMode=1 
+		iwpriv ra2 set MBSSWirelessMode=0 
+		iwpriv ra3 set MBSSWirelessMode=4
+
+HtBw
+	Description: Set HT WLAN Bandwidth 
+	Value: iwpriv ra0 set HtBw=1 0: 20 MHz 1: 40MHz
+
+AuthMode
+	Description: WLAN security Authentication mode 
+	Value: iwpriv ra0 set AuthMode=OPEN OPEN SHARED WEPAUTO WPAPSK WPA2PSK WPANONE WPA WPA2 For open system For shared key system Auto switch between OPEN and SHARED For WPA pre-shared key (Infra) For WPA2 pre-shared key (Infra) For WPA pre-shared key (Adhoc) For enterprise mode (Need wpa_supplicant) For enterprise mode (Need wpa_supplicant)
+
+
+EncrypType
+	Description: WLAN security Encryption type 
+	Value: iwpriv ra0 set EncrypType=NONE NONE WEP TKIP AES For AuthMode=OPEN For AuthMode=OPEN or AuthMode=SHARED For AuthMode=WPAPSK or WPA2PSK For AuthMode=WPAPSK or WPA2PSK
+
+WPAPSK/TKIP
+	On Step-by-Step setting of how to set SoftAP using WPAPSK security mechanism with encryption method TKIP. Assume RT2800 SoftAP set PreShared Key as "myownpresharedkey". Please ensure to set SSID, before/after set WPAPSK. 1. 2. 3. 4. 5. 6. 7. 8. load WLAN SoftAP driver 
+	iwpriv ra0 set AuthMode=WPAPSK 
+	iwpriv ra0 set EncrypType=TKIP 
+	iwpriv ra0 set IEEE8021X=0 
+	iwpriv ra0 set SSID=myownssid 
+	iwpriv ra0 set WPAPSK=myownpresharedkey 
+	iwpriv ra0 set DefaultKeyID=2 
+	iwpriv ra0 set SSID=myownssid
+
+WPAPSK/AES
+	Change setting to WPAPSK with AES. 
+	1. iwpriv ra0 set AuthMode=WPAPSK 
+	2. iwpriv ra0 set EncrypType=AES 
+	3. iwpriv ra0 set IEEE8021X=0 
+	4. iwpriv ra0 set SSID=MySsid 
+	5. iwpriv ra0 set WPAPSK=MyPassword 
+	6. iwpriv ra0 set DefaultKeyID=2 
+	7. iwpriv ra0 set SSID=MySsid 
+	Note: 
+		Step 3 is a must for calculating WPAPSK Key, which requires both SSID and WPAPSK. 
+		Step 5 will make driver to reload all settings. step5 must be the same with step3.
+
+
+
+
+ACL
+	Access Control List (ACL) provides a way to accomplish MAC address filtering. You can use this feature to implement White List or Black List.
+
+AccessPolicy0
+	Description: ACL access policy configuration for BSSID-0
+	Value:
+	AccessPolicy0=0
+	0: Disable
+	1: Allow all entries in the ACL table (white list)
+	2: Reject all entries in the ACL table (black list)
+
+AccessControlList0
+	Description: ACL table entry configuration for BSSID-0
+	Value:
+		AccessControlList0=[Mac Address];[Mac Address];...
+	Example:
+		00:10:20:30:40:50;0A:0b:0c:0D:0e:0f;1a:2b:3c:4d:5e:6f
+	Note: Maximum entry number is 64
+
+ACL iwpriv command
+
+AccessPolicy
+	Description: ACL access policy configuration
+	Value:
+		iwpriv ra0 set AccessPolicy=0
+	0: Disable
+	1: Allow all entries in the ACL table (white list)
+	2: Reject all entries in the ACL table (black list)
+
+ACLAddEntry
+	Description: Add new entry (MAC address) into ACL table
+	Value:
+		iwpriv ra0 set ACLAddEntry=”xx:xx:xx:xx:xx:xx;yy:yy:yy:yy:yy:yy”
+						[MAC address];[MAC address];...;[MAC address]”
+	Note: Maximum entry number is 64
+
+
+ACLDelEntry
+	Description: Remove old entry (MAC address) from ACL table
+	Value:
+		iwpriv ra0 set ACLDelEntry=”xx:xx:xx:xx:xx:xx;yy:yy:yy:yy:yy:yy”
+						[MAC address];[MAC address];...;[MAC address]”
+
+ACLClearAll
+	Description: Remove all entries from ACL table
+	Value:
+		iwpriv ra0 set ACLClearAll=1
+
+
+ACLShowAll
+	Description: Dump all entries in ACL table
+	Value:
+		iwpriv ra0 set ACLClearAll=1
+
+ACL example
+
+	White List
+	iwpriv ra0 set AccessPolicy=1
+	iwpriv ra0 set ACLAddEntry="00:0c:43:28:aa:12;00:0c:43:28:aa:11;00:0c:43:28:aa:10"
+	iwpriv ra0 set ACLShowAll=1
+
+
+	Black List
+	iwpriv ra0 set AccessPolicy=2
+	iwpriv ra0 set ACLAddEntry="00:0c:43:28:aa:12;00:0c:43:28:aa:11;00:0c:43:28:aa:10"
+	iwpriv ra0 set ACLShowAll=1
+
+
