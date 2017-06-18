@@ -18,6 +18,7 @@
 #include "media.h"
 #include <errno.h>
 
+#include <string.h>
 
 //record the recent app info
 #define CLIENTLIST  "/var/APClient.list"
@@ -28,73 +29,154 @@
  * information of the Client app.
  */
 
-typedef struct app_info
-{
-	char hostname[32];
-	char mac[32];
-	//unsigned long time; 	// connect time
-	//char signal[9];  		// the app signal value
-	char msg_os[64]; 		// operation system message.
-} app_info_t;
+static int find_macaddr(char *macaddr, FILE *stream);
 
-void GetDhcpClientList(void);
-//int changehostname(char *hostname, char *mac);
-//int changehostname(void);
+static int change_hostname(char *hostname, char *macaddr);
+
+int GetDhcpClientList(FILE *stream);
 
 int main(int argc, char *argv[])
 {
+#if 0
+	FILE *fp; 
+	fp = fopen(CLIENTLIST, "a+");
+	if(fp == NULL)
+		return -1;
 
-	GetDhcpClientList();
-//	char hostname[16] = "myphone";
-//	char mymac[32] = "AC:F7:F3:1D:57:6E";
+	GetDhcpClientList(fp);
 
-//	changehostname(hostname, mymac);
+	fclose(fp);
+#endif 
+#if 1
+	char *hostname = "world";
+	char *macaddr = "AC:F7:F3:1D:57:6E";
+	change_hostname(hostname, macaddr);
+
+#endif 
 
 	return 0;
 }
 
-#if 1
-void GetDhcpClientList(void)
+static int change_hostname(char *hostname, char *macaddr)
 {
-	FILE *fp;
+	if(hostname == NULL || macaddr == NULL)
+		return -1;
+
+	FILE *fp = fopen(CLIENTLIST, "r+");
+	if(fp == NULL)
+		return -1;
+
+	char buff[2048];
+	char *tmp = macaddr;
+	char *file_mac;
+
+	char *myip = NULL;
+	char temp[18];
+	char *msg_os = NULL;
+
+	while(fgets(buff, 2048, fp) > 0)
+	{
+		int length = strlen(buff);
+		file_mac = web_get("mac", buff, 0);
+		if(strcmp(file_mac, tmp) == 0)
+		{
+			myip = web_get("ip", buff, 2);
+			strcpy(temp, myip);
+
+			msg_os = web_get("msg_os", buff, 0);
+
+#if 1
+			memset(buff, 0, length);
+			fputs(buff, fp);
+			fseek(fp, -length, SEEK_CUR);
+
+#endif 
+			snprintf(buff, length, "hostname=%s&mac=%s&ip=%s&msg_os=%s", hostname, macaddr, temp, msg_os);
+			fseek(fp, -length, SEEK_CUR);
+			fwrite(buff,1, length, fp);
+			return 0;
+		}
+	}
+	fclose(fp);
+
+	return -1;
+}
+
+//找mac地址，找到返回0，找不到返回-1
+static int find_macaddr(char *macaddr, FILE *stream)
+{
+	if( macaddr == NULL || stream == NULL)
+		return -1;
+
+	char buff[2048];
+	char *tmp = macaddr;
+	char *file_mac;
+
+	while(fgets(buff, 2048, stream) > 0)
+	{
+		file_mac = web_get("mac", buff, 0);
+		if(strcmp(file_mac, tmp) == 0)
+			return 0;
+	}
+
+	return -1;
+}
+
+//获取数据并写入到文件东中
+int  GetDhcpClientList(FILE *stream)
+{
+
+	if(stream == NULL)
+		return -1;
+
+	FILE *fp; 
 	struct dhcpOfferedAddr {
 		unsigned char hostname[16];
 		unsigned char mac[16];
 		unsigned long ip;
 		unsigned long expires;
 	} lease;
+
 	int i;
 	struct in_addr addr;
 	unsigned long expires;
 	unsigned d, h, m;
-	char tmpValue[256];
+	//char tmpValue[256];
+
+	char hostname[32];
+	char mac[18];
+	char ip[16];
 
 	do_system("killall -q -USR1 udhcpd");
-	fp = fopen("/var/udhcpd.leases", "rw");
-	
-	int j = 0;
-
+	fp = fopen("/var/udhcpd.leases", "r");
 	if (NULL == fp)
 		return;
+
 	while (fread(&lease, 1, sizeof(lease), fp) == sizeof(lease)) {
 		if (strlen(lease.hostname) > 0) {
-			sprintf(tmpValue, "%s", lease.hostname);
-			convert_string_display(tmpValue);			
-			printf("hostname is:%-16s\n", tmpValue);
+			sprintf(hostname, "%s", lease.hostname);
+			convert_string_display(hostname);			
 		} else {
-			printf("hostname is: \n");
+			strcpy(hostname, "");
 		}
-		if(strcmp(lease.hostname, "MI2-xiaomishouj") == 0)
-			strcpy(lease.hostname, "helloworld");
-		printf("mac is:%02X", lease.mac[0]);
-		for (i = 1; i < 6; i++)
-			printf(":%02X", lease.mac[i]);
-		printf("\n");
 
+		int j;
+		sprintf(&mac[0], "%02X", lease.mac[0]);
+		for(i = 1, j= 2; i < 6; i++, j += 3)
+			sprintf(&mac[j], ":%02X", lease.mac[i]);
+
+		mac[j] = '\0';
+
+		if(find_macaddr(mac, stream) == 0)
+			continue;
+		
 		addr.s_addr = lease.ip;
 		expires = ntohl(lease.expires);
-		printf("IP is:%s\n", inet_ntoa(addr));
-#if 1
+
+		strcpy(ip, inet_ntoa(addr));
+
+		
+#if 0
 		d = expires / (24*60*60); expires %= (24*60*60);
 		h = expires / (60*60); expires %= (60*60);
 		m = expires / 60; expires %= 60;
@@ -110,73 +192,16 @@ void GetDhcpClientList(void)
 		memset(msg_os, 0, 64);
 		fread(msg_os, 64, 1, pp);
 		pclose(pp);
-		printf("Platfrom OS is: %s\n", msg_os);
 
-		if(strcmp(lease.hostname, "MI2-xiaomishouj") == 0)
-		{
-			strcpy(lease.hostname, "helloworld");
-			fwrite(&lease, 1, sizeof(lease), fp);
-		}
+		char my_os[64];
+		strncpy(my_os, msg_os, strlen(msg_os));
+
+		char msg_info[2048];
+		snprintf(msg_info, 2048, "hostname=%s&mac=%s&ip=%s&msg_os=%s", hostname, mac, ip, my_os);
+
+		fputs(msg_info, stream);
+		
 	}
 	fclose(fp);
 }
-#endif 
 
-#if 0
-int changehostname(char *hostname, char *mymac)
-{
-	FILE *fp;
-	//int flags = 0;
-	struct dhcpOfferedAddr {
-		unsigned char hostname[16];
-		unsigned char mac[16];
-		unsigned long ip;
-		unsigned long expires;
-	} lease;
-	char getmac[32];
-	int i, j;
-
-	do_system("killall -q -USR1 udhcpd");
-	fp = fopen("/var/udhcpd.leases", "rw");
-	if (NULL == fp)
-		return;
-	while (fread(&lease, 1, sizeof(lease), fp) == sizeof(lease)) {
-
-#if 0
-		printf("mac is:%02X", lease.mac[0]);
-		for (i = 1; i < 6; i++)
-			printf(":%02X", lease.mac[i]);
-		printf("\n");
-
-#endif 
-
-		sprintf(&getmac[0], "%02X", lease.mac[0]);
-		for(i = 1, j = 2; i < 6; i++, j+=3)
-			sprintf(&getmac[j], ":%02X", lease.mac[1]);
-
-
-#if 1
-	//	printf("mymac: %s\n", mymac);
-		printf("getmac: %s\n", getmac);
-#if 0
-		if(strncmp(mymac, getmac, 17) == 0)
-		{
-			strncpy(lease.hostname, hostname, sizeof(lease.hostname) -1);
-			lease.hostname[15] = '\0';
-			flags = 1;
-			fwrite(&lease, 1, sizeof(lease), fp);
-		}
-
-#endif 
-
-#endif 
-	}
-
-	//if(flags == 0)
-	//	printf("cat not find the mac address!\n");
-
-	fclose(fp);
-	
-	return 0;
-}
-#endif 
