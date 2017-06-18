@@ -1,4 +1,4 @@
-TARGTE := chag
+TARGTE := List
 
 CROSS := mipsel-linux-
 CC := $(CROSS)gcc
@@ -12,10 +12,10 @@ CC := $(CROSS)gcc
 #all: mytest.o mtk_operate.o  utils.o crc32.o flash_api.o nvram_env.o 
 #   $(CC) $^ -o $(TARGTE)
 
-all: test.o  utils.o 
+all: client_list.o  utils.o 
 	$(CC) $^ -o $(TARGTE)
 
 #all: mytest.o 
 #	$(CC) $^ -o $(TARGTE)
 clean: 
-	rm test.o wifi_setting.o mtk_operate.o  utils.o $(TARGTE)
+	rm client_list.o test.o wifi_setting.o mtk_operate.o  utils.o $(TARGTE)
