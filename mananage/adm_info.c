@@ -293,15 +293,129 @@ void getclientlist(void)
 	}
 }
 
+static void addAccessControlList(char *mac)
+{
+	char ACLlist0[2048];
+	strcpy(ACLlist0,nvram_bufget(RT2860_NVRAM, "AccessControlList0"));
+	sprintf(ACLlist0, ";%s", mac);
 
-void blacklist(char *mac)
+	nvram_bufset(RT2860_NVRAM, "AccessControlList0", mac);
+	nvram_commit(RT2860_NVRAM);
+}
+
+void addblacklist(char *mac)
 {
 	if(mac == NULL)
 		return ;
+
+	nvram_bufset(RT2860_NVRAM, "AccessPolicy0", 2);
+	if(strcmp(nvram_bufget(RT2860_NVRAM, "AccessControlList0"), "") == 0)
+	{
+		nvram_bufset(RT2860_NVRAM, "AccessControlList0", mac);
+		nvram_commit(RT2860_NVRAM);
+	}
+	else
+	{
+		addAccessControlList(mac);
+	}
 
 	do_system("iwpriv ra0 set AccessPolicy=2");
 
 	do_system("iwpriv ra0 set ACLAddEntry=\"mac\"");
 
-	do_system("iwpriv ra0 set ACLShowAll=1");
+	//do_system("iwpriv ra0 set ACLShowAll=1");
+}
+
+int find_index(char *mac, char *maclist)
+{
+	int i, count;
+	char substr[18];
+
+	if(mac != NULL && maclist != NULL)
+	{
+		count = get_nums(maclist, ';');
+		for(i = 0 ; i < count; i++)
+		{
+			get_nth_value(i, maclist, ';', substr, strlen(maclist));
+			if(strcmp(mac, substr) == 0)
+				return i;
+		}
+	}   
+	return -1;
+}   
+
+
+
+void delblacklist(char *mac)
+{
+	if(mac == NULL)
+		return ;
+
+	char ACLlist[2048];
+	strcpy(ACLlist,nvram_bufget(RT2860_NVRAM, "AccessControlList0"));
+	if(strcpy(ACLlist, "") == 0)
+	{
+		DBG_MSG("blacklist is empty!");
+	}
+	
+	int index = find_index(mac, ACLlist);
+	if(index < 0)
+	{
+		DBG_MSG("can not find the mac in the blacklist!");
+		return ;
+	}
+
+	int count = get_nums(ACLlist, ';');
+	delete_nth_value(&index, count, ACLlist, ';');
+
+	nvram_bufset(RT2860_NVRAM, "AccessControlList0", ACLlist);
+}
+
+
+
+void showblacklist(void)
+{
+	char ACLlist[2048];
+	strcpy(ACLlist,nvram_bufget(RT2860_NVRAM, "AccessControlList0"));
+
+	int count = get_nums(ACLlist, ';');
+
+
+	char client_info[2048];
+	FILE *fp;
+	fp = fopen(CLIENT_LSIT, "r");
+
+	int i;
+	printf("{\n");
+	printf("\t\"Black_List\"\n");
+	printf("\t[\n");
+	for(i = 0; i < count; i++)
+	{
+		char blackmac[18];
+		char filemac[18];
+		get_nth_value(i, ACLlist, ';', blackmac, strlen(ACLlist));
+
+		while(fgets(client_info, sizeof(client_info), fp))
+		{
+			strcpy(filemac, web_get(client_info, "mac", 0));
+			if(strcmp(blackmac, filemac) == 0)
+			{
+				char hostname[33];
+				char msg_os[64];
+				strcpy(hostname, web_get(client_info, "HostName", 0));
+				strcpy(msg_os, web_get(client_info, "Msg_os", 0));
+				printf("\t\t{\n");
+				printf("\t\t\t\"HostName\" = \"%s\"\n", hostname);
+				printf("\t\t\t\"Mac\" = \"%s\"\n", blackmac);
+				printf("\t\t\t\"Msg_os\" = \"%s\"\n", msg_os);
+				printf("\t\t},");
+				printf("\n");
+			}
+		}
+	}
+	printf("\t\t{\n\t\t}\n");
+	printf("\t]\n");
+	printf("}\n");
+
+	fclose(fp);
 }

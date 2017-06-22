@@ -1,5 +1,5 @@
 #include "mtk_operate.h"
-//#include "nvram.h"
+#include "nvram.h"
 
 #include <string.h>
 
@@ -179,7 +179,7 @@ int is_connect_success(int nvram, ap_message_t *ap_msg)
 	sleep(4);
 	do_system("iwpriv apcli0 show connStatus");
 
-	return atoi((char *)nvram_bufget(nvram, "LinkTest"));
+	return atoi(nvram_bufget(nvram, "LinkTest"));
 }
 
 int set_nvram_buf(int nvram, ap_message_t *ap_msg, extend_message_t *ex_msg)

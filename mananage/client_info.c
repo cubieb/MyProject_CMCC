@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 	{
 		char Mac[64];
 		strcpy(Mac, web_get("Mac", input, 2));
-		blacklist(Mac);
+		addblacklist(Mac);
 	}
 
 	return 0;

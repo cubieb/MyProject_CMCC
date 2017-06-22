@@ -21,6 +21,7 @@
 #include <linux/wireless.h>
 
 #include "oid.h"
+#include "nvram.h"
 
 //#define RT_PRIV_IOCTL (SIOCIWFIRSTPRIV + 0x01)
 //显示所有mac地址列表
@@ -40,9 +41,9 @@
 //get mac table
 typedef struct _rt_mac_entry
 {
-	char Mac[18];
-	int  Signal;
-	unsigned int ConnectedTime;
+	char Mac[18]; //设备的mac地址
+	int  Signal; //设备的信号强度，数值越大，信号越强
+	unsigned int ConnectedTime; //设备链接的时间单位秒
 }rt_mac_entry;
 
 typedef struct _rt_mac_table
@@ -80,8 +81,19 @@ int change_hostname(char *hostname, char *macaddr, FILE *stream);
 //only get the mac table
 int getmactable(rt_mac_table *mac_info);
 
-//get the client info
+//get the client list info
 void getclientlist(void);
 
-void blacklist(char *mac);
+//add black to the acl
+void addblacklist(char *mac);
+
+//从黑名单中找到需要从黑名单删除的mac地址的索引
+int find_index(char *mac, char *maclist);
+
+//delete black list
+void delblacklist(char *mac);
+
+
+void showblacklist(void);
+
 #endif 
