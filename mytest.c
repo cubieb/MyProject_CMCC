@@ -5,6 +5,15 @@
 #include <unistd.h> /* for close */
 #include <linux/wireless.h>
 
+#if 1
+#if WIRELESS_EXT <= 11
+#ifndef SIOCDEVPRIVATE
+#define SIOCDEVPRIVATE 0x8BE0
+#endif
+#define SIOCIWFIRSTPRIV SIOCDEVPRIVATE
+#endif
+#endif 
+
 #define RT_PRIV_IOCTL (SIOCIWFIRSTPRIV + 0x01)
 #define RTPRIV_IOCTL_SET (SIOCIWFIRSTPRIV + 0x02)
 #define RTPRIV_IOCTL_BBP (SIOCIWFIRSTPRIV + 0x03)
@@ -33,6 +42,7 @@
 #define ETH_LENGTH_OF_ADDRESS 6
 #define MAX_LEN_OF_MAC_TABLE 64
 
+#if 1
 typedef struct _COUNTERS
 {
 	unsigned long TxSuccessTotal;;
@@ -78,10 +88,10 @@ typedef union _MACHTTRANSMIT_SETTING {
 
 typedef struct _RT_802_11_MAC_ENTRY {
 	unsigned char Addr[6];
-	unsigned char Aid;
-	unsigned char Psm; // 0:PWR_ACTIVE, 1:PWR_SAVE
-	unsigned char MimoPs; // 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled
-	MACHTTRANSMIT_SETTING TxRate;
+//	unsigned char Aid;
+//	unsigned char Psm; // 0:PWR_ACTIVE, 1:PWR_SAVE
+//	unsigned char MimoPs; // 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled
+//	MACHTTRANSMIT_SETTING TxRate;
 } RT_802_11_MAC_ENTRY, *PRT_802_11_MAC_ENTRY;
 
 
@@ -111,6 +121,7 @@ typedef struct _RT_SIGNAL_STRUC {
 //---------------------------------------------------------
 COUNTERS counter;
 SITE_SURVEY SiteSurvey[100];
+#endif
 
 //user spaces buffer data;
 char data[4096];
@@ -135,7 +146,7 @@ int main( int argc, char ** argv )
 	sprintf(name, "ra0");
 	memset(data, 0x00, 255);
 
-#if 0 // have test is ok
+
 	//
 	//example of iwconfig ioctl function ==========================================
 	//
@@ -150,12 +161,29 @@ int main( int argc, char ** argv )
 		printf("\nrtuser::error::get wireless name\n\n");
 		goto rtuser_exit;
 	}
-	printf("\nrtuser[%s]:%s\n", name, wrq.u.name);
+
+#if 0
+	//
+	//example of iwpriv ioctl function ============================================
+	//
+	//WPAPSK, remove "set" string ---------------------------------------------
+	memset(data, 0x00, 255);
+	strcpy(data, "WPAPSK=11223344");
+	strcpy(wrq.ifr_name, name);
+	wrq.u.data.length = strlen(data)+1;
+	wrq.u.data.pointer = data;
+	wrq.u.data.flags = 0;
+	ret = ioctl(socket_id, RTPRIV_IOCTL_SET, &wrq);
+	if(ret != 0)
+	{
+		printf("\nrtuser::error::set wpapsk\n\n");
+		goto rtuser_exit;
+	}
 
 #endif 
 
 
-#if 0 //have test is ok
+#if 0  //is ok 
 	//get statistics, remove "stat" string ------------------------------------
 	memset(data, 0x00, 2048);
 	strcpy(data, "");
@@ -182,7 +210,8 @@ int main( int argc, char ** argv )
 			sscanf(sp, "%ul", (unsigned int *)&cp[i]);
 		}
 		printf("Tx success = %u\n", (unsigned int)counter.TxSuccessTotal);
-		printf("Tx success without retry = %u\n", (unsigned int)counter.TxSuccessWithoutRetry);
+		printf("Tx success without retry = %u\n", (unsigned int)
+				counter.TxSuccessWithoutRetry);
 		printf("Tx success after retry = %u\n", (unsigned int)counter.TxSuccessWithRetry);
 		printf("Tx fail to Rcv ACK after retry = %u\n", (unsigned int)counter.TxFailWithRetry);
 		printf("RTS Success Rcv CTS = %u\n", (unsigned int)counter.RtsSuccess);
@@ -198,8 +227,102 @@ int main( int argc, char ** argv )
 
 #endif 
 
+#if 0
+	//set AP to do site survey, remove "set" string ---------------------------
+	memset(data, 0x00, 255);
+	strcpy(data, "SiteSurvey=1");
+	strcpy(wrq.ifr_name, name);
+	wrq.u.data.length = strlen(data)+1;
+	wrq.u.data.pointer = data;
+	wrq.u.data.flags = 0;
+
+
+	ret = ioctl(socket_id, RTPRIV_IOCTL_SET, &wrq);
+#endif
+
+
+#if 0 // is error! segmentation fault
+	//get AP's site survey, remove "get_site_survey" string -------------------
+	memset(data, 0x00, 2048);
+	strcpy(data, "");
+	strcpy(wrq.ifr_name, name);
+	wrq.u.data.length = 4096;
+	wrq.u.data.pointer = data;
+	wrq.u.data.flags = 0;
+	ret = ioctl(socket_id, RTPRIV_IOCTL_GSITESURVEY, &wrq);
+	if(ret != 0)
+	{
+		printf("\nrtuser::error::get site survey\n\n");
+		goto rtuser_exit;
+	}
+
+
+	//printf("\n%s\n", wrq.u.data.pointer);
+	printf("\n========== Get Site Survey AP List ==========");
+	if(wrq.u.data.length > 0)
+	{
+		int i, apCount;
+		char *sp, *op;
+		int len = wrq.u.data.length;
+		op = sp = wrq.u.data.pointer;
+		sp = sp+1+8+8+35+19+8+1;
+		i = 0;
+		// santy check
+		// 1. valid char data
+		// 2. rest length is larger than per line length ==> (1+8+8+35+19+8+1)
+		while(*sp && ((len - (sp-op)) > (1+8+8+35+19+8)))
+		{
+			//if(*sp++ == '\n')
+			// continue;
+			//printf("\n\nAP Count: %d\n", i);
+			sscanf(sp, "%d", (int *)&SiteSurvey[i].channel);
+			//printf("channel: %d\n", SiteSurvey[i].channel);
+			sp = strstr(sp, "-");
+
+
+			sscanf(sp, "-%d", (int *)&SiteSurvey[i].rssi);
+			//printf("rssi: -%d\n", SiteSurvey[i].rssi);
+			sp = sp+8;
+			strncpy((char *)&SiteSurvey[i].ssid, sp, 32);
+			SiteSurvey[i].ssid[32] = '\0';
+			//printf("ssid: %s\n", SiteSurvey[i].ssid);
+			sp = sp+35;
+			sscanf(sp, "%02x:%02x:%02x:%02x:%02x:%02x",
+					(int *)&SiteSurvey[i].bssid[0], (int *)&SiteSurvey[i].bssid[1],
+					(int *)&SiteSurvey[i].bssid[2], (int *)&SiteSurvey[i].bssid[3],
+					(int *)&SiteSurvey[i].bssid[4], (int *)&SiteSurvey[i].bssid[5]);
+			//printf("bssid: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			// SiteSurvey[i].bssid[0], SiteSurvey[i].bssid[1],
+			// SiteSurvey[i].bssid[2], SiteSurvey[i].bssid[3],
+			// SiteSurvey[i].bssid[4], SiteSurvey[i].bssid[5]);
+			sp = sp+19;
+
+			strncpy((char *)&SiteSurvey[i].security, sp, 8);
+			SiteSurvey[i].security[8] = '\0';
+			//printf("security: %s\n", SiteSurvey[i].security);
+			sp = sp+8+1;
+			i = i+1;
+		}
+		apCount = i;
+		printf("\n%-4s%-8s%-8s%-35s%-20s%-8s\n",
+				"AP", "Channel", "RSSI", "SSID", "BSSID", "Security");
+		for(i = 0 ; i < apCount ; i++)
+		{//4+8+8+35+20+8
+			printf("%-4d", i+1);
+			printf("%-8d", SiteSurvey[i].channel);
+			printf("-%-7d", SiteSurvey[i].rssi);
+			printf("%-35s", SiteSurvey[i].ssid);
+			printf("%02X:%02X:%02X:%02X:%02X:%02X ",
+					SiteSurvey[i].bssid[0], SiteSurvey[i].bssid[1],
+					SiteSurvey[i].bssid[2], SiteSurvey[i].bssid[3],
+					SiteSurvey[i].bssid[4], SiteSurvey[i].bssid[5]);
+			printf("%-8s\n", SiteSurvey[i].security);
+		}
+	}
+#endif 
 
 #if 1
+
 	//get AP's mac table, remove "get_mac_table" string -----------------------
 	memset(data, 0x00, 2048);
 	strcpy(data, "");
@@ -213,11 +336,16 @@ int main( int argc, char ** argv )
 		printf("\nrtuser::error::get mac table\n\n");
 		goto rtuser_exit;
 	}
+	char *m = (char *)wrq.u.data.pointer;
+	printf("%s\n", m);
+
+#if 0
 	printf("\n========== Get Associated MAC Table ==========");
 	{
 		RT_802_11_MAC_TABLE *mp;
 		int i;
 		mp = (RT_802_11_MAC_TABLE *)wrq.u.data.pointer;
+		printf("%x\n", mp);
 		printf("\n%-4s%-20s%-4s%-10s%-10s%-10s\n",
 				"AID", "MAC_Address", "PSM", "LastTime", "RxByte", "TxByte");
 
@@ -227,21 +355,21 @@ int main( int argc, char ** argv )
 			printf("%-4d", mp->Entry[i].Aid);
 			printf("%02X:%02X:%02X:%02X:%02X:%02X ",
 					mp->Entry[i].Addr[0], mp->Entry[i].Addr[1],
-					mp->Entry[i].Addr[2], mp->Entry[i].Addr[3],
+				mp->Entry[i].Addr[2], mp->Entry[i].Addr[3],
 					mp->Entry[i].Addr[4], mp->Entry[i].Addr[5]);
 			printf("%-4d", mp->Entry[i].Psm);
-			printf("%-10u", (unsigned int)mp->Entry[i].HSCounter.LastDataPacketTime);
-			printf("%-10u", (unsigned int)mp->Entry[i].HSCounter.TotalRxByteCount);
-			printf("%-10u", (unsigned int)mp->Entry[i].HSCounter.TotalTxByteCount);
+	//		printf("%-10u", (unsigned int)mp->Entry[i].HSCounter.LastDataPacketTime);
+	//		printf("%-10u", (unsigned int)mp->Entry[i].HSCounter.TotalRxByteCount);
+	//		printf("%-10u", (unsigned int)mp->Entry[i].HSCounter.TotalTxByteCount);
 			printf("\n");
 
 		}
 		printf("\n");
+#endif 
 	}
-
 #endif 
 
-#if 0
+#if 0 
 	//set: raw data
 	// RTPRIV_IOCTL_RADIUS_DATA
 	// RTPRIV_IOCTL_ADD_WPA_KEY
@@ -403,6 +531,7 @@ int main( int argc, char ** argv )
 		goto rtuser_exit;
 	}
 #endif 
+
 rtuser_exit:
 	if (socket_id >= 0)
 		close(socket_id);
