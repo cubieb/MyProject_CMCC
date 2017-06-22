@@ -67,18 +67,18 @@ typedef struct black_list_table
 
 #endif 
 
-//记录连接设备列表的信息
+//记录连接过该路由的设备列表的信息
 #define CLIENT_LSIT "/var/APClient.list"
 
-//获取设备列表的信息到指定的打开的文件流
+//获取设备列表的信息保存到指定的打开的文件流
 int getdevicelist(FILE *stream);
 
 
-//在指定的打开的文件流中，修改设备的主机名
+//在指定打开的文件流中，修改设备的主机名
 int change_hostname(char *hostname, char *macaddr, FILE *stream);
 
 
-//only get the mac table
+//get the mac table info
 int getmactable(rt_mac_table *mac_info);
 
 //get the client list info
@@ -88,6 +88,7 @@ void getclientlist(void);
 void addblacklist(char *mac);
 
 //从黑名单中找到需要从黑名单删除的mac地址的索引
+//为了能更好的使用delete_nth_value删除列表值
 int find_index(char *mac, char *maclist);
 
 //delete black list

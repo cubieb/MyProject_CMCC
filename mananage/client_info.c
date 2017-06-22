@@ -25,19 +25,22 @@ int main(int argc, char *argv[])
 
 	length = get_message_from_web(input);
 
+	//for web client 
+	web_debug_header();
+
 	//web端请求谁在上网
-	if(strcmp("wholine", web_get("Client_Info", input, 2)) == 0)
+	if(strcmp("wholine", web_get("Client_Info", input, 0)) == 0)
 	{
 		getclientlist();
 	}
 
 	//change the hostname
-	if(strcmp("changehost", web_get("changename", input, 2)) == 0)
+	if(strcmp("changehost", web_get("changename", input, 0)) == 0)
 	{
 		char HostName[32];
 		char Mac[64];
-		strcpy(HostName, web_get("HostName", input, 2));
-		strcpy(Mac, web_get("Mac", input, 2));
+		strcpy(HostName, web_get("HostName", input, 0));
+		strcpy(Mac, web_get("Mac", input, 0));
 
 		FILE *fp;
 		fp = fopen(CLIENT_LSIT, "r+");
@@ -50,11 +53,25 @@ int main(int argc, char *argv[])
 	}
 
 	//add to the black list
-	if(strcmp("black", web_get("blacklist", input, 2)) == 0)
+	if(strcmp("black", web_get("blacklist", input, 0)) == 0)
 	{
-		char Mac[64];
-		strcpy(Mac, web_get("Mac", input, 2));
+		char Mac[18];
+		strcpy(Mac, web_get("Mac", input, 0));
 		addblacklist(Mac);
+	}
+
+	//delete black list
+	if(strcmp("", web_get("", input, 0)) == 0)
+	{
+		char Mac[18];
+		strcpy(Mac, web_get("", input, 0));
+		delblacklist(Mac);
+	}
+
+	//show black list
+	if(strcpy("", web_get("", input, 0)) == 0)
+	{
+		showblacklist();
 	}
 
 	return 0;

@@ -62,12 +62,18 @@ int getdevicelist(FILE *stream)
 			strcpy(hostname, "");
 		}
 
+#if 0
 		int j;
 		sprintf(&mac[0], "%02X", lease.mac[0]);
 		for(i = 1, j= 2; i < 6; i++, j += 3)
 			sprintf(&mac[j], ":%02X", lease.mac[i]);
 
 		mac[j] = '\0';
+#endif 
+		sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X"
+				lease.mac[0], lease.mac[1], lease.mac[2],
+				lease.mac[3], lease.mac[4], lease.mac[5]);
+		mac[17] = '\0';
 
 		//这里还感觉逻辑有点理不通。优化的时候注意这里一下
 		//如果mac地址在列表中，不再重复添加，跳过
@@ -160,6 +166,12 @@ int change_hostname(char *hostname, char *macaddr, FILE *stream)
 	return -1;
 }
 
+/*
+ * 获取连接该路由的设备信息
+ * mac地址　signal信号的强度　connectime连接的时间(秒为单位)
+ *
+ */
+
 int getmactable(rt_mac_table *mac_table)
 {
 
@@ -234,6 +246,12 @@ rtuser_exit:
 }
 
 
+/*
+ *
+ * 直接获取连接路由的设备信息返回给web端
+ * hostname mac signal connectime msg_os 
+ *
+ */
 void getclientlist(void)
 {
 	rt_mac_table mac_table;
@@ -297,9 +315,9 @@ static void addAccessControlList(char *mac)
 {
 	char ACLlist0[2048];
 	strcpy(ACLlist0,nvram_bufget(RT2860_NVRAM, "AccessControlList0"));
-	sprintf(ACLlist0, ";%s", mac);
+	sprintf(ACLlist0, "%s;%s",ACLlist0, mac);
 
-	nvram_bufset(RT2860_NVRAM, "AccessControlList0", mac);
+	nvram_bufset(RT2860_NVRAM, "AccessControlList0", ACLlist0);
 	nvram_commit(RT2860_NVRAM);
 }
 
@@ -309,6 +327,7 @@ void addblacklist(char *mac)
 		return ;
 
 	nvram_bufset(RT2860_NVRAM, "AccessPolicy0", 2);
+	//当黑名单为空时
 	if(strcmp(nvram_bufget(RT2860_NVRAM, "AccessControlList0"), "") == 0)
 	{
 		nvram_bufset(RT2860_NVRAM, "AccessControlList0", mac);
