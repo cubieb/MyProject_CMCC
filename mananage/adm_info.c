@@ -70,7 +70,7 @@ int getdevicelist(FILE *stream)
 
 		mac[j] = '\0';
 #endif 
-		sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X"
+		sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
 				lease.mac[0], lease.mac[1], lease.mac[2],
 				lease.mac[3], lease.mac[4], lease.mac[5]);
 		mac[17] = '\0';
@@ -119,6 +119,9 @@ int getdevicelist(FILE *stream)
 
 //在指定的打开的文件流中，修改设备的主机名
 // open file mode is r+ 
+
+
+// is ok 
 int change_hostname(char *hostname, char *macaddr, FILE *stream)
 {
 	if(hostname == NULL || macaddr == NULL || stream == NULL)
@@ -140,9 +143,12 @@ int change_hostname(char *hostname, char *macaddr, FILE *stream)
 		int length = strlen(buff);
 		file_mac = web_get("mac", buff, 0);
 
+		DBG_MSG("file_mac is %s", file_mac);
+
 		//find the mac the same as stream mac
 		if(strcmp(file_mac, tmp) == 0)
 		{
+			DBG_MSG(" %d %s", __LINE__, __FILE__);
 			myip = web_get("ip", buff, 2);
 			strcpy(temp, myip);
 
@@ -150,7 +156,8 @@ int change_hostname(char *hostname, char *macaddr, FILE *stream)
 
 			//clear a line
 			memset(buff, 0, length);
-			fputs(buff, stream);
+			//fputs(buff, stream);
+			fwrite(buff, 1, length, stream);
 			fseek(stream, -length, SEEK_CUR);
 
 			//write a line
@@ -171,7 +178,7 @@ int change_hostname(char *hostname, char *macaddr, FILE *stream)
  * mac地址　signal信号的强度　connectime连接的时间(秒为单位)
  *
  */
-
+//经过测试  ok
 int getmactable(rt_mac_table *mac_table)
 {
 
@@ -252,10 +259,14 @@ rtuser_exit:
  * hostname mac signal connectime msg_os 
  *
  */
+//经过测试 ok
 void getclientlist(void)
 {
 	rt_mac_table mac_table;
 	getmactable(&mac_table);
+
+	DBG_MSG(" %d  %s", __LINE__, __FILE__);
+	DBG_MSG(" mac_table.Num = %d", mac_table.Num);
 
 	if(mac_table.Num > 0)
 	{
@@ -266,12 +277,14 @@ void getclientlist(void)
 			return ;
 
 		int i; 
+		DBG_MSG(" %d  %s", __LINE__, __FILE__);
 		printf("{\n");
 		printf("\t\"Client_Info\":\n");
 		printf("\t[\n");
 
 		for(i = 0; i < mac_table.Num; i++)
 		{
+			DBG_MSG(" %d  %s", __LINE__, __FILE__);
 			char buff[1024];
 			//获取设备信息
 			while(fgets(buff, 1024, fp))
@@ -286,19 +299,21 @@ void getclientlist(void)
 				strcpy(Msg_os,web_get("msg_os", buff, 0));
 				Msg_os[strlen(Msg_os) - 1] = '\0';
 
+				//DBG_MSG("hostname= %s mac= %s  msg_os = %s", HostName, Mac, Msg_os);
+
 				//跟之前记录的mac作比较,相同则显示
 				if(strcmp(Mac, mac_table.entry[i].Mac) == 0)
 				{
 
 					printf("\t\t{\n");
-					printf("\t\t\"HostName\":\"%s\"\n", HostName);
-					printf("\t\t\"Signal\":\"%d\"\n", mac_table.entry[i].Signal);
-					printf("\t\t\"ConnectedTime\":\"%d\"\n", mac_table.entry[i].ConnectedTime);
-					printf("\t\t\"Mac\":\"%s\"\n", Mac);
+					printf("\t\t\"HostName\":\"%s\",\n", HostName);
+					printf("\t\t\"Signal\":\"%d\",\n", mac_table.entry[i].Signal);
+					printf("\t\t\"ConnectedTime\":\"%d\",\n", mac_table.entry[i].ConnectedTime);
+					printf("\t\t\"Mac\":\"%s\",\n", Mac);
 					printf("\t\t\"Msg_os\":\"%s\"\n", Msg_os);
 					printf("\t\t},\n");
 
-					rewind(fp);
+					//rewind(fp);
 					break;
 				}
 			}
@@ -326,7 +341,7 @@ void addblacklist(char *mac)
 	if(mac == NULL)
 		return ;
 
-	nvram_bufset(RT2860_NVRAM, "AccessPolicy0", 2);
+	nvram_bufset(RT2860_NVRAM, "AccessPolicy0", "2");
 	//当黑名单为空时
 	if(strcmp(nvram_bufget(RT2860_NVRAM, "AccessControlList0"), "") == 0)
 	{
@@ -397,44 +412,51 @@ void showblacklist(void)
 	char ACLlist[2048];
 	strcpy(ACLlist,nvram_bufget(RT2860_NVRAM, "AccessControlList0"));
 
-	int count = get_nums(ACLlist, ';');
-
-
-	char client_info[2048];
-	FILE *fp;
-	fp = fopen(CLIENT_LSIT, "r");
-
-	int i;
 	printf("{\n");
-	printf("\t\"Black_List\"\n");
+	printf("\t\"Black_List\":\n");
 	printf("\t[\n");
-	for(i = 0; i < count; i++)
+		
+	int count = get_nums(ACLlist, ';');
+	if(count <=0) ;
+	else
 	{
-		char blackmac[18];
-		char filemac[18];
-		get_nth_value(i, ACLlist, ';', blackmac, strlen(ACLlist));
+		char client_info[2048];
+		FILE *fp;
+		fp = fopen(CLIENT_LSIT, "r");
 
-		while(fgets(client_info, sizeof(client_info), fp))
+		int i;
+		for(i = 0; i < count; i++)
 		{
-			strcpy(filemac, web_get(client_info, "mac", 0));
-			if(strcmp(blackmac, filemac) == 0)
+			char blackmac[18];
+			char filemac[18];
+			get_nth_value(i, ACLlist, ';', blackmac, strlen(ACLlist));
+
+			while(fgets(client_info, sizeof(client_info), fp))
 			{
-				char hostname[33];
-				char msg_os[64];
-				strcpy(hostname, web_get(client_info, "HostName", 0));
-				strcpy(msg_os, web_get(client_info, "Msg_os", 0));
-				printf("\t\t{\n");
-				printf("\t\t\t\"HostName\" = \"%s\"\n", hostname);
-				printf("\t\t\t\"Mac\" = \"%s\"\n", blackmac);
-				printf("\t\t\t\"Msg_os\" = \"%s\"\n", msg_os);
-				printf("\t\t},");
-				printf("\n");
+				strcpy(filemac, web_get(client_info, "mac", 0));
+				if(strcmp(blackmac, filemac) == 0)
+				{
+					char hostname[33];
+					char msg_os[64];
+					strcpy(hostname, web_get(client_info, "HostName", 0));
+					strcpy(msg_os, web_get(client_info, "Msg_os", 0));
+
+					printf("\t\t{\n");
+					printf("\t\t\"HostName\":\"%s\",\n", hostname);
+					printf("\t\t\"Mac\":\"%s\",\n", blackmac);
+					printf("\t\t\"Msg_os\":\"%s\"\n", msg_os);
+					printf("\t\t},\n");
+
+
+
+				}
 			}
 		}
+		fclose(fp);
 	}
 	printf("\t\t{\n\t\t}\n");
 	printf("\t]\n");
 	printf("}\n");
 
-	fclose(fp);
+
 }

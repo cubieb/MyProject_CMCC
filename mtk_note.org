@@ -230,3 +230,10 @@ ACL example
 	iwpriv ra0 set ACLShowAll=1
 
 
+
+
+tips:
+
+strtol
+int bssidnum = strtol(nvram_get(RT2860_NVRAM, "BssidNum"), NULL, 10);
+

@@ -21,6 +21,8 @@
 #include <linux/wireless.h>
 
 #include "oid.h"
+
+//get the RT2860_NVRAM
 #include "nvram.h"
 
 //#define RT_PRIV_IOCTL (SIOCIWFIRSTPRIV + 0x01)

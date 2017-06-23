@@ -1,6 +1,8 @@
 #include "mtk_operate.h" 
 #include "nvram.h"
 
+#include <string.h>
+
 /*
  * 主要是实现系统的进本设置
  * 重启，恢复出厂设置，固件升级三个功能
@@ -15,15 +17,21 @@ int main(int argc, char *argv[])
 	if(length <= 0)
 		DBG_MSG("get the message is empty or failed!");
 
-	if(strcmp("reboot", webget("reboot_sys", input, 0)) == 0)
+	char *temp;
+	temp = webget("reboot_sys", input, 0);
+	if(strcmp("reboot", temp) == 0)
 	{
 		do_system("reboot");
 	}
-	if(strcmp("recover", webget("recover_sys", input, 0)) == 0)
+
+	temp = webget("recover_sys", input, 0);
+	if(strcmp("recover", temp) == 0)
 	{
 		recover_factory_setting();
 	}
-	if(strcmp("update", webget("update_sys", input, 0)) == 0)
+
+	temp = webget("update_sys", input, 0);
+	if(strcmp("update", temp) == 0)
 	{
 		//还没有做,在考虑如何升级固件
 	}
